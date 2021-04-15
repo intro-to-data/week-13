@@ -1,0 +1,374 @@
+---
+title: "Covid19 Edition"
+output: 
+  html_notebook:
+    toc: true
+    toc_float:
+      toc_collapsed: true
+    toc_depth: 2
+    theme: cerule
+---
+
+
+# Goals
+
+- You will work on a real, changing data set.
+- You will use the county-grain Covid19 data to assess the status of
+  the outbreak here in New York State.
+- Honestly, this should connect what we have been doing/learning in
+  class and show you how these are genuinely useful skills.
+- If this lab doesn't convince you these skills are useful, I give up. :-)
+
+
+
+# Setup
+
+- In this case, I've included some commentary to help you understand
+  what is going on.
+- Remember, 80% of time spent on most data analysis projects is spent dealing
+  with the data. Also, everyone has agreed to make up that 80% number.
+    - We spend soooo much time downloading, munging, joining, etc.
+
+```{r setup}
+rm(list = ls())
+library(ggiraph)
+library(knitr)
+library(lubridate)
+library(maps)
+library(rmarkdown)
+library(tidyverse)
+options(scipen=999)
+
+## There are two data sets, but be aware that the full file, commented out below, is too big for Excel.
+##data_url_counties <- "https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
+data_url_counties <- "https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties-recent.csv"
+which_state <- "New York"
+which_county <- "Albany"
+
+
+county_cases <- 
+  read_csv(data_url_counties) %>%
+  filter(state == which_state)
+
+## This is similar to what we did with the State data, but for NY Counties ONLY.
+county_data <-
+  county_cases %>%
+  ## Removes stump rows. Weirdly, New York County was not given a row. Dunno why.
+  filter(county != "Bronx", county != "Kings", county != "Richmond", county != "Queens")  %>%
+  ## This is a little cruel. It exaggerates the severity of the situation in Queens.
+  ## It also creates a new date column called week_of.
+  mutate(
+    county  = case_when(county == "New York City"~"Queens",TRUE~county),
+    fips    = as.numeric(case_when(county == "Queens"~"36081",TRUE~fips)),
+    week_of = ceiling_date(date, unit="weeks")
+    ) %>%
+  ## This puts the columns into a nice order.
+  select(state,county,fips,week_of,cases,deaths) %>%
+  arrange(state,county,fips,week_of) %>%
+  ## These next two steps remove date, and replace it with week_of.
+  ## This helps to reduce the noise in the data because of accidents in how
+  ## or when data was reported to the state.
+  group_by(state,county,fips,week_of) %>%
+  summarize(
+    ytd_cases = last(cases),
+    ytd_deaths = last(deaths),
+    rolling_new_cases  = cases - lag(cases, default = first(cases), order_by = county),
+    rolling_new_deaths = deaths - lag(deaths, default = first(deaths), order_by = county)
+  ) %>%
+  ## This just prevents us from struggling with it later.
+  ungroup() %>%
+  ## Have you noticed I am very particular about how my data is arranged?
+  select(state,
+         county,
+         fips,
+         week_of,
+         ytd_cases,
+         rolling_new_cases,
+         ytd_deaths,
+         rolling_new_deaths) %>%
+  ## We cannot have incomplete weeks in our daa, because it could falsely
+  ## look like a drop in the exponential pattern. This removes incomplete
+  ## weeks.
+  filter(week_of <= today())
+
+## PLEASE note that we have replaced the "date" column with "week_of" which is the last day of the week (Saturday).
+## Look at the value produced by the log of 0. Why is this?
+## Aren't you glad I didn't make you write that?
+county_data %>% paged_table()
+```
+
+
+
+# Lab
+
+
+## Task 01 Max Dates
+
+```{r}
+## Task 01: Max Dates
+##
+## Create a dataframe called max_dates.
+## In it, calculate the max week_of date, per county, found in this data set.
+## This is similar to what we did in class. You will need this
+## later. Summarize on the week_of column. Call this column max_date.
+##
+## Pro Tip: Group by fips. Not county. FIPS Codes are a way to identify
+## counties and they will make our joins later less painful.
+##
+## Pro Tip: You are going to need to use the assignment operator (<-)
+## to complete this task. This will let you create a new dataframe.
+##
+## In Canvas, tell me what the max_date for fips 36001 is.
+
+## YOUR CODE HERE!
+
+```
+
+
+## Task 02 Add Population Data
+
+```{r}
+## Task 02: Population Data
+##
+## Below, is some code that will import estimates of New York State
+## county populations. Use an inner_join() to join Population and
+## county_data. I recommend joining on fips. You want to create a new
+## county_data dataframe that ALSO contains the population data.
+##
+## Pro Tip: Any time you have a standard identification, like a FIPS
+## code, use it for your joins. You are less likely to spend an hour
+## fighting naming convention differences, capitalization differences,
+## etc. Trust me on this one.
+##
+## Pro Tip: You are going to need to use the assignment operator (<-)
+## to complete this task. This will let you create a new dataframe.
+##
+## In Canvas, tell me the estimated 2019 population of Albany County.
+
+## This is what I'm giving you. It will create population.
+population <-
+    read_csv("https://data.ny.gov/api/views/krt9-ym2k/rows.csv?accessType=DOWNLOAD&sorting=true") %>%
+    filter(Year == 2019) %>%
+    select(fips = "FIPS Code", population = Population)
+
+## YOUR CODE HERE!
+## You need to do an inner_join here.
+## Remember to put the column you are joining by in quotations.
+
+```
+
+
+
+## Review County Data:
+
+It is important to understand/inspect your data.
+
+- **Data Source:** [NYT Covid19 Data](https://github.com/nytimes/covid-19-data/blob/master/README.md)
+- **WARNING:** This analysis assigns all cases/deaths in New
+  York City to Queens. The raw data source assigns all coronavirus cases in 
+  the five boroughs to "New York City", which we cannot graph geographically.
+  And, because Queens has more cases than any other borough, this analysis
+  attributes all cases/deaths to that borough/county.
+   - We did this above in the setup chunk.
+- I suggest you review this data and seek to understand what is here,
+  the grain of the data, and look for any mistakes, etc.
+
+```{r echo=FALSE}
+county_data
+```
+
+We will continue to look at and focus on the growth and distribution of cases
+throughout New York State.
+
+# Plot Some Data
+
+## Task 05: Plot "cases" by "week_of"
+
+- This is similar to what we did in class.
+- X Axis: week_of, Y Axis: ytd_cases, color = county
+- Only include rows where ytd_cases > 1000
+- Upload this to Canvas.
+
+```{r} 
+## YOUR CODE HERE!
+
+```
+
+Also, while the numbers for Queens are exaggerated because the include
+cases for the other four burroughs as well, take a moment to
+appreciate the staggering scale of this epidemic. Labs rarely call for
+a moment of silence. This is an exception.
+
+
+
+## Task 06: What is the difference?
+
+Look at my code below. Here, I am filtering where cases >= 1000,
+rather than using an inner join. I am then producing the plot I
+expected you to write for the previous task. Explain to me how these
+two plots differ and why I prefer the plot you (hopefully) wrote over
+the plot below, which is terrible.
+
+```{r}
+## Look at the results here. Compare to what you did above.  How is
+## this graph different? Why do I not like this, even thought it is
+## easier to understand/read? In what way(s) is it incorrect or 
+## omit useful information?
+county_data %>%
+    filter(cases >= 1000) %>%
+    ggplot(aes(week_of, cases, color = county)) +
+    geom_point() +
+    geom_line()
+```
+
+
+## Task 07: Which One Is Better
+
+I want us to compare the rate of change across counties. Below, I have 
+provided you with two plots. Can you explain to me why the second plot
+is better for comparing counties?
+
+### Actual Numbers Plot
+
+- X Axis: cases, Y Axis: new_cases, color = county, 
+- Include only those counties in Over1000.
+
+```{r} 
+county_data %>%
+    inner_join(Over1000, by="fips") %>%
+    ggplot(aes(cases, new_cases, color = county)) +
+    geom_point() +
+    geom_line() +
+    ggtitle("New Cases by Current Cases")
+
+```
+
+### Log Numbers Plot
+
+- X Axis: cases, Y Axis: new_cases, color = county
+- Transform the X and Y axis to be log10, but show the actual numbers
+  for readability/interpretation.
+- Include only those counties in Over1000.
+
+```{r} 
+county_data %>%
+    filter(new_cases > 0) %>%
+    inner_join(Over1000, by="fips") %>%
+    ggplot(aes(x = cases, y = new_cases, color = county)) +
+    geom_point() +
+    geom_line() +
+    scale_x_log10() +
+    scale_y_log10()
+```
+
+Why is the second plot better for comparing different counties?  **Hint:**
+Think back to the video.
+
+# Maps!
+
+## Task 08: New York State
+
+Draw a State/County map of New York State. This is similar to what we
+did last week in class, but I'm adding the complexity of plotting the
+counties as well.
+
+Review this map and tell me what you think it is telling you in Canvas.
+
+```{r}
+
+## First, let's load some map data and look at it.
+## You only need to load this in once per sussion.
+StateMap <- map_data("state") %>% filter(region == "new york")
+CountyMap <- map_data("county") %>% filter(region == "new york")
+
+## Now let's build our data set.
+## See how we are re-using our max_dates data?
+## And . . . . see how this data transformation stuff IS useful?
+## When doing REAL statistics.
+
+## This step takes a minute.
+CountyMapData <- 
+    county_data %>%
+    inner_join(max_date, by = c("fips","week_of"="max_date")) %>%
+    inner_join(CountyMap, by = "subregion")
+
+ggplot(CountyMapData, aes(long, lat, group = group))+
+    geom_polygon(aes(fill = cases), color = "white")+
+    theme_classic() +
+    ggtitle("Distribution of Coronavirus Cases (2020)")
+```
+
+## Task 09: Cases Per 1000 County Residents
+
+- There is some auto-correlation between population size (of the
+  county) and the number of coronavirus cases there are. All else
+  being equal, larger counties will tend to have more cases.
+- Add a column to county_data called prop, for proportion. This should
+  be the number of cases per 1000 county residents.
+- Remember, you have to assign the output of your dplyr mutate to
+  county_data or it won't work.
+- Then, draw a new map showing the distribution of this new column,
+  like what we did above.
+- Upload this map to Canvas.
+
+```{r}
+## YOUR CODE HERE!
+
+```
+
+Hopefully, you can see that although the distribution of raw case
+counts is very biased to NYC, the distribution of prop is much wider
+and it makes all of look quite a bit different.
+
+Now do the same for deaths. Do you see a similar pattern? Are deaths per 1,000
+residents similarly distributed?
+
+# Task 10: Is our work reproducible?
+
+- Assuming the New York Times leaves the data on their website, is this lab reproducible next year?
+- Is the code available for inspection?
+- Is the analysis connected to the code?
+- Do you think this sort of scientific workflow would help us address the reproducibility crisis?
+    - I obviously think it can. However, feel free to disagree with me
+      if that's how you feel. I want you to think about this, not
+      blindly agree with me to get a good grade.
+
+# Task 11: Upload Your R Script
+
+Yeah. Just do what the title says. Upload the `Lab 11 - Codid19 Edition.Rmd` file.
+
+# Task 12: Was this lab useful?
+
+Was this lab useful? This is an "essay" question, but I want your
+honest thoughts/opinions. Any reasonable answer will receive full
+credit.
+
+# Task 13: Extra Credit
+
+If you can figure out how to apply all of these graphs to NYS counties
+with fewer than 1,000 coronavirus cases, I'll give you half a
+letter-grade on your lowest non-exam grade in the class. If you can
+figure out how to run the code against another state, there are even
+more opportunities:
+
+- Figure out how to run everything except the population data
+  transformations/graph and I'll give you a full letter grade on your
+  lowest non-exam grade.
+- Figure out how to run the population transformations/graphs for that
+  state as well, and I'll just give you an A on your lowest non-exam
+  grade in the class.
+  
+This latter opportunity should be of interest to those of you with an
+incomplete item or two.
+
+
+```{r}
+county_data %>%
+    filter(new_cases > 0, county %in% c("Albany","Saratoga","Rensselaer","Schenectady","Greene","Columbia","Schoharie","Montgomery","Washington","Warren","Fulton")) %>%
+    mutate(county = "Capital District") %>%
+    ggplot(aes(x = cases, y = new_cases, color = county)) +
+    geom_point() +
+    geom_line() +
+    scale_x_log10() +
+    scale_y_log10()
+```
