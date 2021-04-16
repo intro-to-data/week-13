@@ -208,7 +208,7 @@ state_data <-
     new_deaths = deaths - lag(deaths, default = first(deaths), order_by = state)
   ) %>%
   ungroup() %>%
-  mutate(week_of = ceiling_date(date, unit="weeks")) %>%
+  mutate(week_of = ceiling_date(date, unit="weeks") - 1) %>%
   group_by(state,week_of) %>%
   summarize(
     cases = last(cases),
