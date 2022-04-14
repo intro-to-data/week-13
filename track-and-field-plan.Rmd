@@ -1,0 +1,944 @@
+---
+title: Track And Field Plan
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+## ---- Libraries ----
+library(knitr)
+library(readxl) ## This is the package used to IMPORT the Excel data.
+library(tidyverse)
+
+
+## ---- Data Import ----
+women <-
+  read_excel(
+    ## This is very similar to how we import CSV data, but we have to also
+    ## identify which worksheet the data comes from.
+    path = "data/Track and Field National Prep.xlsx",
+    sheet = "Women - Data"
+  ) %>%
+  select(-Time)
+men <-
+  read_excel(
+    path = "data/Track and Field National Prep.xlsx",
+    sheet = "Men - Data"
+  ) %>%
+  select(-Time)
+
+## This is "convenience" function I wrote to keep the code cleaner.
+convert_to_points <- function(place) {
+  case_when(
+    place == 1 ~ 10,
+    place == 2 ~ 9,
+    place == 3 ~ 8,
+    place == 4 ~ 7,
+    place == 5 ~ 6,
+    place == 6 ~ 5,
+    place == 7 ~ 4,
+    place == 8 ~ 3,
+    place == 9 ~ 2,
+    place == 10 ~ 1,
+    TRUE ~ 0
+  )
+}
+
+## ---- Empty Scores Data ----
+event_scores_women <- tibble()
+event_scores_men <- tibble()
+```
+
+# List of Events
+
+The list of women's events is slightly different than men's events in this data.This report assumes any missing events are due to no competitors in that event, and thus prepares a space for future reporting on that event. The exception to this is the 100M Hurdles (women) v 110M Hurdles (men), since these are gender specific events.
+
+```{r message=FALSE, echo=FALSE}
+
+## This is a new function.
+## It concatenates (stacks) two tibbles into one.
+bind_rows(
+  women %>% mutate(Gender = "Women"),
+  men %>% mutate(Gender = "Men")
+) %>%
+  select(Event, Unit, Gender) %>%
+  distinct() %>%
+  group_by(Event, Unit) %>%
+  summarize(
+    Women = as.logical(max(Gender == "Women")),
+    Men = as.logical(max(Gender == "Men"))
+  ) %>%
+  kable()
+```
+
+# Scoring Methodology
+
+For running events, participants are ordered by ASCENDING time, meaning the participant with the shortest time is shown as winning first place. Field events are ranked in descending order of distance, meaning the participant with the largest distance is ranked first. Points are awarded as follows:
+
+| Place | Points |
+|------:|-------:|
+|     1 |     10 |
+|     2 |      9 |
+|     3 |      8 |
+|     4 |      7 |
+|     5 |      6 |
+|     6 |      5 |
+|     7 |      4 |
+|     8 |      3 |
+|     9 |      2 |
+|    10 |      1 |
+|    11+|      0 |
+
+
+
+# Women's Events
+
+## Sprints
+
+### 100M
+
+```{r results = "asis", echo=FALSE}
+## Because I set results to "asis", I can have tables or text in my report.
+## And because I say echo=FALSE, the report is "clean" and doesn't include any code.
+event <- 
+  women %>%
+  filter(Event == "100M") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+## But, because we aren't using a notebook, we have to tell R to make
+## output look nice. Here, we are using the "kable" function from knitr.
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+### 100M Hurdles
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "100M Hurdles") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+### 200M
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "200M") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+### 400M
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "400M") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+### 400M Hurdles
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "400M Hurdles") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+### 800M
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "800M") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+## Middle Distance
+
+### 1500M
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "1500M") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+### 3000M Steeplechase
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "300M Steeplechase") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+## Long Distance
+
+### 5K
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "5K") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+## Relay
+
+### 4x1 Relay
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "4x1 Relay") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+### 4x4 Relay
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "4x4 Relay") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Time))
+rm(event)
+```
+
+## Field Events
+
+### Long Jump
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "Long Jump") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Distance))
+rm(event)
+```
+
+### Triple Jump
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "Triple Jump") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Distance))
+rm(event)
+```
+
+### Shot Put
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "Shot Put") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Distance))
+rm(event)
+```
+
+### Discus
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "Discus") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Distance))
+rm(event)
+```
+
+### Hammer Throw
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "Hammer Throw") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Distance))
+rm(event)
+```
+
+### Jav
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "Jav") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Distance))
+rm(event)
+```
+
+### Pole Vault
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "Pole Vault") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Distance))
+rm(event)
+```
+
+### High Jump
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  women %>%
+  filter(Event == "High Jump") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_women <-
+  bind_rows(event_scores_women, event %>% select(-Distance))
+rm(event)
+```
+
+
+
+# Men's Events
+
+## Sprints
+
+### 100M
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "100M") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+### 110M Hurdles
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "110M Hurdles") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+### 200M
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "200M") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+### 400M
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "400M") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <- bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+### 400M Hurdles
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "400M Hurdles") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+### 800M
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "800M") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+## Middle Distance
+
+### 1500M
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "1500M") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+### 3000M Steeplechase
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "3000M Steeplechase") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+## Long Distance
+
+### 5K
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "5K") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+## Relay
+
+### 4x1 Relay
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "4x1 Relay") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+### 4x4 Relay
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "4x4 Relay") %>%
+  select(-Unit) %>%
+  rename(Time = Measured) %>%
+  arrange(Time) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Time))
+rm(event)
+```
+
+## Field Events
+
+### Long Jump
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "Long Jump") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Distance))
+rm(event)
+```
+
+### Triple Jump
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "Triple Jump") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Distance))
+rm(event)
+```
+
+### Shot Put
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "Shot Put") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Distance))
+rm(event)
+```
+
+### Discus
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "Discus") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Distance))
+rm(event)
+```
+
+### Hammer Throw
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "Hammer Throw") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Distance))
+rm(event)
+```
+
+### Jav
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "Jav") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Distance))
+rm(event)
+```
+
+### Pole Vault
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "Pole Vault") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Distance))
+rm(event)
+```
+
+### High Jump
+
+```{r results = "asis", echo=FALSE}
+event <- 
+  men %>%
+  filter(Event == "High Jump") %>%
+  select(-Unit) %>%
+  rename(Distance = Measured) %>%
+  arrange(desc(Distance)) %>%
+  mutate(
+    Place = row_number(),
+    Points = convert_to_points(Place)
+  )
+event %>% kable()
+if (nrow(event) == 0) cat("No competitors in the current data.")
+
+event_scores_men <-
+  bind_rows(event_scores_men, event %>% select(-Distance))
+rm(event)
+```
+
+# Scores
+
+## Women
+
+```{r results = "asis", echo=FALSE}
+event_scores_women %>%
+  group_by(School) %>%
+  summarize(Points = sum(Points)) %>%
+  arrange(desc(Points)) %>%
+  kable()
+```
+
+## Men
+
+```{r results = "asis", echo=FALSE}
+event_scores_men %>%
+  group_by(School) %>%
+  summarize(Points = sum(Points)) %>%
+  arrange(desc(Points)) %>%
+  kable()
+```

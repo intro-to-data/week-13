@@ -9,327 +9,250 @@ output:
     theme: cerule
 ---
 
-# Setup
-
-```{r setup, warning = FALSE, message = FALSE}
-rm(list = ls())
-library(ggiraph)
-library(knitr)
-library(lubridate)
-library(maps)
-library(rmarkdown)
-library(tidyverse)
-options(scipen=999)
-
-data_url_states <- "https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv"
-state_cases <- read_csv(data_url_states)
-
-state_populations <- read_csv("data/state_populations.csv")
-
-## Synthetic data can be useful to explore ideas/relationships.
-synthetic_data <- 
-  tibble(
-    day = 1:10,
-    date = seq(ymd('2021-01-01'),ymd('2021-01-10'),by='days'),
-    ## Disease A doubles every 24 hours.
-    cases_a = c(1,2,4,8,16,32,64,128,256,512),
-    log_cases_a = log(cases_a),
-    ## Disease B increases by 2 every 24 hours.
-    cases_b = 1:10*2,
-    log_cases_b = log(cases_b)
-  )
-```
-
-
-
 # Tonight's Goals
 
-- Tell a story with data.
-- And this is an important story.
-- As such, I will suppress some of the code where I don't think it is important, but we will definitely discuss plenty of code tonight.
-- You have all of the code in lecture.Rmd.
-- Enjoy!
+- Reproducibility
+- Random Forests
+- Lab: Choose your own adventure
 
 
 
-# Exponential Growth
+# Reproducibility
 
-**Question:** How would you define exponential growth?
-
-Examples of exponential growth:
-
-- compound interest (for good and bad)
-- epidemics/pandemics
-- fire
-- the population of bunnies
-
-## Synthetic Data
-
-- Contains cases data for two imaginary diseases (Disease A and Disease B).
-- The MATH we are discussing is applicable beyond epidemiology.
-- We have case count records for 10 days.
-- One disease is experiencing exponential growth after starting with a single case.
-- One is experiencing linear growth after starting with two cases.
-- Both diseases start spreading on the first day of 2021.
-- One days one - four, the differences do not seem important.
-- By day five, the differences become apparent.
-
-```{r echo=FALSE}
-synthetic_data %>% paged_table()
-```
-
-If real, this would be a terrifyingly FAST moving disease.
-
-- This kind of growth is more akin to bacteria growing in your body.
-- It is a synthetic example.
-- I wanted the first few days to look similar.
+Morgan shared an Excel file with me, which she has agreed to let me use in class. Now I will awkwardly put her on the spot and ask her to tell us what they were trying to do with this Excel file. See [Track and Field National Prep.xlsx](data/Track and Field National Prep.xlsx) in the data folder to see what I am talking about.
 
 
-## Exponential Growth Curve 
+1. The original worksheets include both data entry AND calculation.
+2. Unfortunately, reordering rows of data in Excel is hard.
+3. So, we will just do it in R.
 
-What does this growth curve look like?
+- **Problem:** Reproducing this report with a new data set would be time consuming and error prone. (Disclaimer, all data entry is error prone.) Reproducing
+- **Goal:** Make the report reproducible, without having to manually move the data around or calculate points.
 
-```{r echo=TRUE}
-ggplot(synthetic_data, aes(date, cases_a)) +
-  geom_point() +
-  geom_line() +
-  ggtitle("Exponential growth: Do I look familiar?")
-```
+## Next Steps
 
-From Wikipedia:
+- We moved the data into two new worksheets.
+    - Yes, this was done manually.
+    - But it creates a process of "pure" data entry.
+- Separation of Concerns
+- See [track-and-field-plan.Rmd](track-and-field-plan.Rmd) in this week's folder.
 
-> It occurs when the instantaneous rate of change, the derivative, of a quantity with respect to time is proportional to the quantity itself.
-
-The number of cases of Disease A doubles every 24 hours ($n^2$). Unfortunately, we have all become far too familiar with exponential growth curves in the evening news.
-
-- But how can we test to see if a relationship is exponential?
-- And how can we figure out what the exponent is?
-
-To answer both of these questions, we can exploit the value of the logarithm.
-
-```{r echo=TRUE}
-ggplot(synthetic_data, aes(date, log_cases_a)) +
-  geom_point() +
-  geom_line() +
-  ggtitle("May the logarithm set you free")
-```
-
-- TADA!
-- This should also teach you something about log/exponents.
-    - Exponential growth INCREASES DRAMATICALLY as X increases.
-    - Log growth DECREASES DRAMATICALLY as X increases.
-- Your eyes are actually really good at seeing a straight line. If it looks straight, it is close enough.
-    - This example uses fake data. In reality, there would be more noise.
-
-So, that answers the first question. We know how to test for exponential growth, but how do we figure out what the exponent is? Well, that too is pretty easy at this point.
-
-```{r echo=TRUE}
-## You've already learned how to calculate a linear model.
-## PLEASE NOTE: We are using log_cases_a, not the actual number of cases.
-lin_mod <- lm(log_cases_a~date, synthetic_data)
-lin_mod
-```
-
-- A computer stores dates as an integer.
-- What do you suppose the value of `exp(0.693147)` is?
-    - If you guessed, `r exp(0.693147)`, congrats!
-    - I took the float out a bit further to avoid rounding problems.
-- The best math is circular math.
+This script should look familiar to you.
 
 
 
-## Not Exponential Growth
+# Random Forests
 
-If you plot the logs of a linear relationship, like Disease B, you get something else entirely.
+```{r setup}
+## Make sure you run this, it loads a couple of additional packages.
+library(modelr)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(tidyverse)
 
-Moral of this story:
-
-- Logging your data can be useful.
-- But don't just do it, plot the results and let your eyes guide you.
-- Because if you do a linear regression in ↓, you get garbage.
-
-```{r echo=TRUE}
-ggplot(synthetic_data, aes(date, log_cases_b)) + geom_point() + geom_line()
-```
-
-
-
-# A Michigan Problem?
-
-<div class="covid-act-now-embed" data-fips-id="26" /><script src="https://covidactnow.org/scripts/embed.js"></script>
-
-You can compare our results to what you can see on [Covid Act Now](https://covidactnow.org/us/michigan-mi/?s=1755676) (above).
-
-- April 13: [Michigan officials request help as COVID-19 cases surge](https://www.cbsnews.com/news/michigan-covid-cases-gretchen-whitmer-help-request/)
-- April 13: [Opinion: Vaccines won’t save Michigan from its covid-19 surge](https://www.washingtonpost.com/opinions/2021/04/13/vaccines-wont-save-michigan-its-covid-19-surge/)
-- April 16: [Coronavirus: Michigan protesters defy stay-at-home order](https://www.bbc.com/news/av/world-us-canada-52304832)
-
-
-## Our Data
-
-Tonight, we will tell a story with data.
- 
-- `state_cases`: From the NY Times: https://github.com/nytimes/covid-19-data
-    - You wanted to spend some time with real data, this is real data.
-    - And Michigan is a real discussion topic.
-- `population`: From Wikipedia, July 2020 population estimates.
-
-**Questions:** 
-
-- Why do we need state population data?
-- How do we need to transform this data in order to use discuss the current events in Michigan?
-
-```{r echo=FALSE}
-state_cases %>% paged_table()
-```
-
-```{r echo=FALSE}
-state_populations %>% paged_table()
-```
-
-
-## Data Transformations
-
-- Our analysis depends on a weekly rolling average of new cases/deaths per 100,000 residents.
-- The NY Times Covid Data is daily (good), but it is YTD (bad).
-- This code groups the covid data by week:
-    - calculates rolling new case/death averages for the week
-    - and provides data as of the end of the week (total cases/deaths YTD)
-
-```{r echo=TRUE}
-## Let's discuss this, but I do not expect you to be able to do this.
-state_data <- 
-  state_cases %>% 
-  select(state, fips,date, cases, deaths) %>%
-  arrange(state,fips,date) %>%
-  group_by(state,fips) %>%
+titanic <- read_csv("data/titanic-train-clean.csv") %>%
   mutate(
-    new_cases  = cases - lag(cases, default = first(cases), order_by = state),
-    new_deaths = deaths - lag(deaths, default = first(deaths), order_by = state)
+    ## Remember, we have to make pclass into a character column.
+    pclass = as.character(pclass),
+    died = !survived,
   ) %>%
-  ungroup() %>%
-  mutate(week_of = ceiling_date(date, unit="weeks") - 1) %>%
-  group_by(state,week_of) %>%
+  select(-survived)
+```
+
+## Our Titanic Data
+
+```{r}
+titanic
+```
+
+## A BIG Decision Tree
+
+- Let's rebuild one of our last CaRT models from last week.
+- CaRT: Classification and Regresstion Tree
+- Yeah, the metaphor is a stretch. I know.
+
+```{r}
+cart_model <- rpart(died~sex+pclass+age+embarked, data = titanic, method = "class")
+summary(cart_model)
+rpart.plot(cart_model)
+```
+
+And we can assess how good our model is:
+
+```{r}
+titanic$cart_model <-
+  predict(cart_model, newdata = titanic %>% mutate(died = NA))[,2]
+
+titanic <- 
+  titanic %>%
+  mutate(
+    ## Using a risk of .5 as the cut point is the same as using a odds of > 1.
+    predicted_cart_model = case_when(cart_model > .5~1, TRUE~0)
+  )
+
+titanic %>%
+  group_by(died) %>%
   summarize(
-    cases = last(cases),
-    deaths = last(deaths),
-    new_cases_rolling = mean(new_cases),
-    new_deaths_rolling = mean(new_deaths)
-  ) %>%
-  ungroup() %>%
-  left_join(state_populations, by = "state") %>%
+    predicted_died = sum(if_else(predicted_cart_model == 1, 1, 0)),
+    predicted_survived = sum(if_else(predicted_cart_model == 0, 1, 0))
+  )
+```
+
+- Accuracy: `r (513+218) / 891` 82.04%
+- Two more ways to assess a classification model:
+    - Sensitivity: `r 513 / (513 + 124)` 80.53%
+    - Specificity: `r 218 / (218 + 36)` 85.83%
+
+
+
+# From One Tree, To Many
+
+- Thus far, our CaRT models have been of a single tree.
+- And single trees can be over fit (and we talked about some ways to control for this).
+- But there is one even more interesting way to control for overfitting.
+- Instead of building one tree, build 1,000 (or more)!
+- [Wikipedia: Random Forests](https://en.wikipedia.org/wiki/Random_forest)
+
+But first I need to introduce bagging, which is basically an applied form of the bootstrap.
+
+```{r}
+## What is the average age of a passenger?
+titanic %>%
+  summarize(
+    avg_age = mean(age, na.rm = TRUE)
+  )
+```
+Previously, we dicussed an idea called Monte Carlo which allows us to infer the distribution of data using a sample, by sampling it a bunch of times. Let's review this briefly (this is not on the final).
+
+```{r}
+## The one-thousand voyages of Titanic!
+repetitions <- 1000
+average_age <- numeric(repetitions)
+for (i in 1:repetitions) {
+  titanic_voyage_ages <- sample(titanic$age[!is.na(titanic$age)], size = repetitions, replace = TRUE)
+  average_age_this_voyage <- mean(titanic_voyage_ages, na.rm = TRUE)
+  average_age[i] <- average_age_this_voyage
+}
+mean_average_age <- mean(average_age)
+mean_average_age
+sd_average_age <- sd(average_age)
+sd_average_age
+
+ggplot(data = tibble(average_age), aes(average_age)) +
+  geom_density() +
+  geom_vline(aes(xintercept = mean_average_age), color = "red") +
+  geom_vline(aes(xintercept = mean_average_age+2*sd_average_age), color = "blue") +
+  geom_vline(aes(xintercept = mean_average_age-2*sd_average_age), color = "blue")
+```
+
+- Each average must have the same number of elements as the original. Else it is invalid.
+    - Drops NAs
+- We can look at a single sample of ages.
+
+```{r}
+## These are the samepled ages of our LAST randomly selected voyage.
+head(titanic_voyage_ages)
+```
+
+- So if this works, and it does, we can apply this idea on a larger scale.
+- Imagine selecting a copy/sample of our titanic data (rows).
+- This is like the bootstrap, but for the entire data set!
+- But, we need to drop any row with a NA (null) value, because those violate the bootstrap rule!
+
+```{r}
+titanic_no_na <-
+  titanic %>%
+  ## We've already proven we don't want/need these.
+  select(-name, -ticket, -cabin, -passengerid) %>%
+  drop_na()
+
+titanic_new_voyage <- 
+  titanic_no_na %>%
+  sample_n(size = nrow(titanic_no_na), replace = TRUE)
+
+## Our original data:
+titanic_no_na %>% group_by(survived) %>% count()
+
+## Our example sampled data:
+titanic_new_voyage %>% group_by(survived) %>% count()
+```
+
+- Imagine doing this a thousand times and each time, getting a slightly different sample.
+- And, to make sure the trees themselves model on different features, each tree is modeled using a random subset of the features.
+    - Some models will not have age or sex, for example.
+    - And some models will not include passenger class.
+    - This means that the models differ quite a lot.
+    
+```{r}
+cart_model_new <- 
+  titanic_new_voyage %>%
+  ## This model doesn't use gender or passenger class.
+  select(-sex, -pclass) %>%
+  rpart(died~., data = ., method = "class")
+summary(cart_model_new)
+rpart.plot(cart_model_new)
+```
+
+- Imagine doing this a thousand times and then AVERAGING the risk scores.
+- Because THIS is a random forest.
+- Lots of decision trees, created at random, creates a random forest.
+    - They are statisticians, not comedians.
+
+Advantages:
+
+- Typically have very good performance
+- Remarkably good “out-of-the box” - very little tuning required
+- Built-in validation set - don’t need to sacrifice data for extra validation
+- No pre-processing required
+- Robust to outliers
+
+Disadvantages:
+
+- Can become slow on large data sets
+- Although accurate, often cannot compete with advanced boosting algorithms
+- Less interpretable
+- If missingness itself is a pattern, random forests will tend to miss this
+
+```{r}
+rf_model <- randomForest(died~sex+pclass+age+embarked, data = titanic_no_na)
+summary(rf_model)
+plot(rf_model)
+```
+
+```{r}
+titanic_no_na$rf_model <-
+  predict(rf_model, newdata = titanic_no_na %>% mutate(died = NA))
+
+titanic_no_na <-
+  titanic_no_na %>%
   mutate(
-    cases_100k = cases/population*100000,
-    deaths_100k = deaths/population*100000,
-    new_cases_rolling_100k = new_cases_rolling/population*100000,
-    new_deaths_rolling_100k = new_deaths_rolling/population*100000,
+    ## Using a risk of .5 as the cut point is the same as using a odds of > 1.
+    predicted_cart_model = case_when(rf_model > .5~1, TRUE~0)
   )
-state_data %>% paged_table()
-```
 
-## 2021 Case Counts
-
-- Graph ONLY shows 2021 data.
-- You KNOW Michigan is a small state, but LOOK at where they are on that curve.
-
-```{r echo=TRUE}
-new_cases <-
-  state_data %>% 
-  filter(week_of >= "2021-01-01") %>% 
-  ggplot(aes(x = week_of, y = new_cases_rolling, color = state)) +
-  geom_line_interactive(
-    aes(tooltip = state, data_id = state),
-    ## Suppressing the legend, because otherwise it (50 state names)
-    ## overwhelms everything else.
-    show.legend = FALSE
+titanic_no_na %>%
+  group_by(died) %>%
+  summarize(
+    predicted_died = sum(if_else(predicted_cart_model == 1, 1, 0)),
+    predicted_survived = sum(if_else(predicted_cart_model == 0, 1, 0))
   )
-x <- girafe(ggobj = new_cases)
-x <- girafe_options(
-  x = x,
-  opts_hover(css = "stroke:red;stroke-width:2")
-)
-x
 ```
 
+- Accuracy =`r  (422 + 217)/nrow(titanic_no_na)` which is 82.45 percent.
+- No, not a lot better, but the same features.
+- This is a reasonable introduction to random forests, which are a form of black-box machine learning.
 
-## 2021 Case Counts Per 100,000
+# Next Steps/Lab
 
-- I do not understand the Missouri spike in the middle of March. (Data dump?)
-- Our results are similar to Covid Act Now, although those are using different data and slightly superior methodology.
-
-```{r}
-new_cases_100k <-
-  state_data %>% 
-  filter(week_of >= "2021-01-01", !state %in% c("Guam","Puerto Rico")) %>% 
-  ggplot(aes(x = week_of, y = new_cases_rolling_100k, color = state)) +
-  geom_line_interactive(
-    aes(tooltip = state, data_id = state),
-    show.legend = FALSE
-  )
-x <- girafe(ggobj = new_cases_100k)
-x <- girafe_options(
-  x = x,
-  opts_hover(css = "stroke:red;stroke-width:2")
-)
-x
-```
-
-```{r}
-## As of April 15, Covid Act Now claims 78.7 deaths per 100K and we are
-## calculating 76.02, which is pretty decent since we are using different data
-## and a slightly less sophisticated methodology.
-state_data %>% 
-  filter(state == "Michigan") %>% 
-  arrange(desc(week_of)) %>% 
-  paged_table()
-```
-
-- It appears the new case rate may be leveling off, albeit at a rate much higher than anywhere else in the nation.
-- Is Rhode Island the next "big" story?
-- Let's look at Michigan's numbers in March/April.
-
-```{r echo=TRUE}
-michigan_new_cases <-
-  state_data %>% 
-  filter(week_of >= "2021-03-01", state == "Michigan") %>% 
-  ggplot(aes(x = week_of, y = new_cases_rolling_100k)) +
-  geom_line_interactive(
-    aes(tooltip = state, data_id = state),
-    show.legend = FALSE
-  ) +
-  geom_point_interactive(
-    aes(tooltip = new_cases_rolling_100k, data_id = new_cases_rolling_100k), 
-    show.legend = FALSE,
-    size = 2
-  )
-  
-x <- girafe(ggobj = michigan_new_cases)
-x <- girafe_options(
-  x = x,
-  opts_hover(css = "stroke:red;stroke-width:2")
-)
-x
-```
+- My goal with this class is to get students, like you excited about data.
+- I never feel like I really succeed.
+- So I'm going to do something completely different today.
+- I'm going to ask you what would get you engaged/interested in data.
+- And I'm going to let you choose your own adventure tonight/next week.
 
 
-## How Fast Was It Growing?
-
-- The steepest/scariest part of the slope here is between March 14 and April 4.
-- During this time period, how quickly were the number of new cases growing per week?
-
-```{r echo=TRUE}
-michigan_model_data <- 
-  state_data %>% 
-  filter(between(week_of, ymd("2021-03-14"), ymd("2021-04-04")), state == "Michigan") %>%
-  mutate(log_new_cases_rolling = log(new_cases_rolling))
-
-michigan_model <- lm(log_new_cases_rolling~week_of, michigan_model_data)
-michigan_model
-```
-
-```{r}
-exp(0.05676)
-```
 
 
-And, if we have time, we should unpack what this means.
+
+
