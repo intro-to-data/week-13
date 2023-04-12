@@ -1,5 +1,5 @@
 ---
-title: "R GIS"
+title: "Thresholds & Forests"
 output: 
   html_document:
     toc: true
@@ -9,58 +9,170 @@ output:
     theme: cerule
 ---
 
-# Tonight's Goals
+# Goals:
 
-- Reproducibility
+- Thresholds
 - Random Forests
-- Lab: Choose your own adventure
-
-
-
-# Reproducibility
-
-Morgan shared an Excel file with me, which she has agreed to let me use in class. Now I will awkwardly put her on the spot and ask her to tell us what they were trying to do with this Excel file. See [Track and Field National Prep.xlsx](data/Track and Field National Prep.xlsx) in the data folder to see what I am talking about.
-
-
-1. The original worksheets include both data entry AND calculation.
-2. Unfortunately, reordering rows of data in Excel is hard.
-3. So, we will just do it in R.
-
-- **Problem:** Reproducing this report with a new data set would be time consuming and error prone. (Disclaimer, all data entry is error prone.) Reproducing
-- **Goal:** Make the report reproducible, without having to manually move the data around or calculate points.
-
-## Next Steps
-
-- We moved the data into two new worksheets.
-    - Yes, this was done manually.
-    - But it creates a process of "pure" data entry.
-- Separation of Concerns
-- See [track-and-field-plan.Rmd](track-and-field-plan.Rmd) in this week's folder.
-
-This script should look familiar to you.
-
-
-
-# Random Forests
 
 ```{r setup}
 ## Make sure you run this, it loads a couple of additional packages.
 library(modelr)
 library(randomForest)
+library(rio)
 library(rpart)
 library(rpart.plot)
 library(tidyverse)
 
-titanic <- read_csv("data/titanic-train-clean.csv") %>%
+titanic <- import("./data/titanic-train-clean.csv") |>
   mutate(
     ## Remember, we have to make pclass into a character column.
     pclass = as.character(pclass),
     died = !survived,
-  ) %>%
+  ) |>
   select(-survived)
+
+strokes <- import("./data/strokes.csv")
+
 ```
 
-## Our Titanic Data
+
+
+
+# Threshold Values
+
+- Last week, we built this model during our lab.
+- And although the model appears to be pretty good, we were clearly using the wrong threshold values for stroke/not stroke.
+- How can we find the best possible threshold value for our models? 
+
+```{r}
+glm_hypertension_smoking_status <- 
+  glm(
+    stroke ~ hypertension + smoking_status,
+    family = binomial,
+    data = strokes)
+summary(glm_hypertension_smoking_status)
+
+## Use this code chunk to predict strokes and build your confusion matrix.
+strokes <-
+  strokes |>
+  add_predictions(
+    glm_hypertension_smoking_status,
+    var = "glm_hypertension_smoking_status",
+    type = "response") |>
+  mutate(pred_hypertension_smoking_status = if_else(glm_hypertension_smoking_status > 0.5, 1, 0))
+
+strokes |>
+  group_by(stroke) |>
+  summarize(
+    pred_stroke = sum(pred_hypertension_smoking_status),
+    pred_not_stroke = sum(!pred_hypertension_smoking_status)
+  )
+```
+
+Oops, our model predicted ZERO strokes.
+
+- What is the range of values (risk) in the `glm_hypertension_smoking_status` column?
+
+```{r}
+strokes |>
+  summarize(
+    min(glm_hypertension_smoking_status),
+    max(glm_hypertension_smoking_status)
+  )
+
+ggplot(strokes, aes(x = glm_hypertension_smoking_status)) + geom_density()
+```
+
+- Min Value: 0.027
+- Max Value: 0.155
+- And note that this is not a continuous distribution.
+  - This is we are using a series of categorical features and these can only cluster in so many groupings.
+  - Hypertension: 0/1
+  - Smoking Status: "formerly smoked", "never smoked", "smokes", etc.
+
+And we can see this.
+
+```{r}
+strokes |>
+  count(hypertension, smoking_status, glm_hypertension_smoking_status) |>
+  arrange(glm_hypertension_smoking_status)
+```
+
+- And that's it. That is the range right there of our possible values.
+- In our data, people who formerly smoked are older than those who smoke, and I suspect that is the real reason why we see that relationship.
+
+```{r}
+ggplot(strokes, aes(x = smoking_status , y = age)) + geom_boxplot()
+```
+
+So, how do we find the best threshold/cut-off value?
+
+```{r}
+# An empty table to hold our calculations.
+thresholds <- tibble()
+
+# This gives us a series of 171 tests.
+# Anyone want to volunteer to do this by hand?
+threshold_values <- seq(0.02, .19, .001)
+
+for (tv in threshold_values) {
+  
+  # We don't need to put the predicted risk in every time.
+  # But we do need to make classification decisions for every possible value of tv.
+  strokes <-
+    strokes |>
+    mutate(pred_hypertension_smoking_status = if_else(glm_hypertension_smoking_status > tv, 1, 0))
+
+  # This is what we've done before, but this time we are going to save it to a table.
+  # Which we will overwrite EVERY time this loop runs.
+  confusion_matrix <- 
+    strokes |>
+    group_by(stroke) |>
+    summarize(
+      pred_stroke = sum(pred_hypertension_smoking_status),
+      pred_not_stroke = sum(!pred_hypertension_smoking_status)
+    )
+  
+  # And we calculate accuracy for each possible value of tv.
+  accuracy <- (confusion_matrix$pred_stroke[confusion_matrix$stroke == 1] + confusion_matrix$pred_not_stroke[confusion_matrix$stroke == 0])/nrow(strokes)
+  
+  true_true <- confusion_matrix$pred_stroke[confusion_matrix$stroke == 1] /(confusion_matrix$pred_stroke[confusion_matrix$stroke == 1] + confusion_matrix$pred_stroke[confusion_matrix$stroke == 0])
+  
+  false_false <- confusion_matrix$pred_not_stroke[confusion_matrix$stroke == 0] /(confusion_matrix$pred_not_stroke[confusion_matrix$stroke == 1] + confusion_matrix$pred_not_stroke[confusion_matrix$stroke == 0])
+  
+  # And we then save these to our thresholds table.
+  thresholds <-
+    bind_rows(
+      thresholds,
+      tibble(
+        threshold_values = tv,
+        accuracy = accuracy,
+        true_true = true_true,
+        false_false = false_false
+      )
+    )
+} # end for (tv in threshold_values)
+
+ggplot(thresholds, aes(x = threshold_values, y = accuracy)) + geom_point() + labs(title = "Accuracy")
+ggplot(thresholds, aes(x = threshold_values, y = true_true)) + geom_point() + labs(title = "True True")
+ggplot(thresholds, aes(x = threshold_values, y = false_false)) + geom_point() + labs(title = "False False")
+```
+
+```{r}
+thresholds |>
+  filter(true_true == max(thresholds$true_true, na.rm = TRUE)) |>
+  distinct()
+```
+
+- A threshold/cutoff of any of these values (.131 - .140), from this sample/model, yields the same results.
+- If we added age, it would be more nuanced.
+- Note: Our over-all accuracy is pretty good but our true_true rate is really rather poor.
+
+
+
+# Random Forests
+
+Titanic Edition!
 
 ```{r}
 titanic
@@ -68,41 +180,58 @@ titanic
 
 ## A BIG Decision Tree
 
-- Let's rebuild one of our last CaRT models from last week.
-- CaRT: Classification and Regresstion Tree
-- Yeah, the metaphor is a stretch. I know.
+- Imagine trying to find the best way to separate those who died from those who did not died for every possible value of your features.
+- In this case, age.
 
 ```{r}
-cart_model <- rpart(died~sex+pclass+age+embarked, data = titanic, method = "class")
-summary(cart_model)
-rpart.plot(cart_model)
+cart_age <- rpart(
+  died~age,
+  data = titanic,
+  method = "class"
+)
+rpart.plot(cart_age)
+```
+
+- Let's build a CaRT model similar to what we were building last week.
+  - CaRT: Classification and Regression Tree
+  - The tree metaphor is a stretch because it is upside down.
+
+
+```{r}
+tree_sex_pclass_age_embarked <- rpart(
+  died~sex+pclass+age+embarked,
+  data = titanic,
+  method = "class"
+  )
+
+# Remember, the summary of CaRT models is not very helpful.
+summary(tree_sex_pclass_age_embarked)
+
+rpart.plot(tree_sex_pclass_age_embarked)
 ```
 
 And we can assess how good our model is:
 
 ```{r}
-titanic$cart_model <-
-  predict(cart_model, newdata = titanic %>% mutate(died = NA))[,2]
-
 titanic <- 
-  titanic %>%
-  mutate(
-    ## Using a risk of .5 as the cut point is the same as using a odds of > 1.
-    predicted_cart_model = case_when(cart_model > .5~1, TRUE~0)
-  )
+  titanic |>
+  add_predictions(
+    tree_sex_pclass_age_embarked,
+    var = "pred_tree_sex_pclass_age_embarked",
+    type = "class")
 
-titanic %>%
-  group_by(died) %>%
+titanic |>
+  group_by(died) |>
   summarize(
-    predicted_died = sum(if_else(predicted_cart_model == 1, 1, 0)),
-    predicted_survived = sum(if_else(predicted_cart_model == 0, 1, 0))
+    predicted_died = sum(pred_tree_sex_pclass_age_embarked == "TRUE"),
+    predicted_not_died = sum(!pred_tree_sex_pclass_age_embarked == "FALSE")
   )
 ```
 
-- Accuracy: `r (513+218) / 891` 82.04%
+- Accuracy: `r (513+124) / 891` 71.5%
 - Two more ways to assess a classification model:
-    - Sensitivity: `r 513 / (513 + 124)` 80.53%
-    - Specificity: `r 218 / (218 + 36)` 85.83%
+    - Sensitivity (TRUE TRUE): `r 100 * 513 / (513 + 124)` = 80.5%
+    - Specificity (FALSE FALSE): `r 100 * 124 / (124 + 513)` = 19.5%
 
 
 
@@ -114,26 +243,35 @@ titanic %>%
 - Instead of building one tree, build 1,000 (or more)!
 - [Wikipedia: Random Forests](https://en.wikipedia.org/wiki/Random_forest)
 
-But first I need to introduce bagging, which is basically an applied form of the bootstrap.
+But first, I need to introduce you to an idea called resampling, which allows us to infer the distribution of data using a sample, by sampling it a bunch of times. Let's review this briefly (this is not on the final).
+
 
 ```{r}
 ## What is the average age of a passenger?
-titanic %>%
+titanic |>
   summarize(
     avg_age = mean(age, na.rm = TRUE)
   )
 ```
-Previously, we dicussed an idea called Monte Carlo which allows us to infer the distribution of data using a sample, by sampling it a bunch of times. Let's review this briefly (this is not on the final).
+
+So if we assume that the age of aboard Titanic tells us something about other hypothetical voyages of the Titanic, then what sort of age distribution would we expect these other Titanic voyages to have, based on statistical randomness?
 
 ```{r}
 ## The one-thousand voyages of Titanic!
 repetitions <- 1000
 average_age <- numeric(repetitions)
+
 for (i in 1:repetitions) {
-  titanic_voyage_ages <- sample(titanic$age[!is.na(titanic$age)], size = repetitions, replace = TRUE)
+  titanic_voyage_ages <- 
+    sample(
+      titanic$age[!is.na(titanic$age)],
+      size = length(titanic$age[!is.na(titanic$age)]),
+      replace = TRUE
+    )
   average_age_this_voyage <- mean(titanic_voyage_ages, na.rm = TRUE)
   average_age[i] <- average_age_this_voyage
-}
+} # end for (i in 1:repetitions)
+
 mean_average_age <- mean(average_age)
 mean_average_age
 sd_average_age <- sd(average_age)
@@ -151,7 +289,7 @@ ggplot(data = tibble(average_age), aes(average_age)) +
 - We can look at a single sample of ages.
 
 ```{r}
-## These are the samepled ages of our LAST randomly selected voyage.
+## These are the sampled ages of our LAST randomly selected voyage.
 head(titanic_voyage_ages)
 ```
 
@@ -162,20 +300,20 @@ head(titanic_voyage_ages)
 
 ```{r}
 titanic_no_na <-
-  titanic %>%
+  titanic |>
   ## We've already proven we don't want/need these.
-  select(-name, -ticket, -cabin, -passengerid) %>%
+  select(-name, -ticket, -cabin, -passengerid) |>
   drop_na()
 
 titanic_new_voyage <- 
-  titanic_no_na %>%
+  titanic_no_na |>
   sample_n(size = nrow(titanic_no_na), replace = TRUE)
 
 ## Our original data:
-titanic_no_na %>% group_by(survived) %>% count()
+titanic_no_na |> group_by(died) |> count()
 
 ## Our example sampled data:
-titanic_new_voyage %>% group_by(survived) %>% count()
+titanic_new_voyage |> group_by(died) |> count()
 ```
 
 - Imagine doing this a thousand times and each time, getting a slightly different sample.
@@ -183,15 +321,24 @@ titanic_new_voyage %>% group_by(survived) %>% count()
     - Some models will not have age or sex, for example.
     - And some models will not include passenger class.
     - This means that the models differ quite a lot.
+    - A feature will not be used twice in the same model, because that just isn't how it works.
     
 ```{r}
-cart_model_new <- 
-  titanic_new_voyage %>%
-  ## This model doesn't use gender or passenger class.
-  select(-sex, -pclass) %>%
-  rpart(died~., data = ., method = "class")
-summary(cart_model_new)
-rpart.plot(cart_model_new)
+cart_model_tree_1 <- 
+  rpart(
+    died~age + embarked,
+    data = titanic_new_voyage,
+    method = "class"
+  )
+rpart.plot(cart_model_tree_1)
+
+cart_model_tree_2 <- 
+  rpart(
+    died~pclass + embarked,
+    data = titanic_new_voyage,
+    method = "class"
+  )
+rpart.plot(cart_model_tree_2)
 ```
 
 - Imagine doing this a thousand times and then AVERAGING the risk scores.
@@ -215,43 +362,31 @@ Disadvantages:
 - If missingness itself is a pattern, random forests will tend to miss this
 
 ```{r}
-rf_model <- randomForest(died~sex+pclass+age+embarked, data = titanic_no_na)
-summary(rf_model)
-plot(rf_model)
+rf_sex_pclass_age_embarked <- randomForest(died~sex+pclass+age+embarked, data = titanic_no_na)
+# This still isn't useful . . . 
+# summary(rf_model)
+
+## But this is???
+plot(rf_sex_pclass_age_embarked)
 ```
 
 ```{r}
-titanic_no_na$rf_model <-
-  predict(rf_model, newdata = titanic_no_na %>% mutate(died = NA))
+titanic_no_na <- 
+  titanic_no_na |>
+  add_predictions(rf_sex_pclass_age_embarked, var = "rf_sex_pclass_age_embarked", type = "class") |>
+  mutate(pred_died = rf_sex_pclass_age_embarked >.5,)
 
-titanic_no_na <-
-  titanic_no_na %>%
-  mutate(
-    ## Using a risk of .5 as the cut point is the same as using a odds of > 1.
-    predicted_cart_model = case_when(rf_model > .5~1, TRUE~0)
-  )
-
-titanic_no_na %>%
-  group_by(died) %>%
+titanic_no_na |>
+  group_by(died) |>
   summarize(
-    predicted_died = sum(if_else(predicted_cart_model == 1, 1, 0)),
-    predicted_survived = sum(if_else(predicted_cart_model == 0, 1, 0))
+    predicted_died = sum(pred_died),
+    predicted_survived = sum(!pred_died)
   )
 ```
 
-- Accuracy =`r  (422 + 217)/nrow(titanic_no_na)` which is 82.45 percent.
+- Accuracy =`r  (423 + 217)/nrow(titanic_no_na)` which is 82.58 percent.
 - No, not a lot better, but the same features.
 - This is a reasonable introduction to random forests, which are a form of black-box machine learning.
-
-# Next Steps/Lab
-
-- My goal with this class is to get students, like you excited about data.
-- I never feel like I really succeed.
-- So I'm going to do something completely different today.
-- I'm going to ask you what would get you engaged/interested in data.
-- And I'm going to let you choose your own adventure tonight/next week.
-
-
 
 
 
