@@ -167,7 +167,7 @@ sofas |>
 
 
 
-# Task 06
+# Task 07
 
 Develop your own model of price, for sofas, using any feature or combination of
 features other than the residuals/predictions of our previous model. Your goal
