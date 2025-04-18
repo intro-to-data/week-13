@@ -1,0 +1,162 @@
+---
+title: IKEA, The Flatpack Wizards 🪄
+---
+
+
+```{r}
+library(tidymodels, tidyverse)
+options(scipen=999)
+ikea <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2020/2020-11-03/ikea.csv')
+
+```
+
+
+![](https://camo.githubusercontent.com/104f5fbc4bc9adafe09600e6e8fccd29e263757d59659be6f67c695992205963/68747470733a2f2f6669766574686972747965696768742e636f6d2f77702d636f6e74656e742f75706c6f6164732f323031362f31302f61705f3131343333343830383135342e6a70673f773d353735)
+
+IKEA sells much of the furniture found in dorm rooms around the world AND they
+happen to sell my favorite chair, the Poäng. They pack it flat, and ship it
+around the world. But that comes with cost and their flatpack "technology" is
+one way they keep their prices down. Let's explore the wonderful world of IKEA.
+
+
+
+# Data
+
+| variable            | description                                                                                         |
+|:--------------------|:----------------------------------------------------------------------------------------------------|
+| `item_id`           | item id which can be used later to merge with other IKEA dataframes                                 |
+| `name`              | the commercial name of items                                                                        |
+| `category`          | the furniture category that the item belongs to                                                     |
+| `price`             | the current price in Saudi Riyals as shown on 4/20/2020                                             |
+| `old_price`         | the price of item in Saudi Riyals before discount sellable_online                                   |
+| `sellable_online`   | is the item available online?                                                                       | 
+| `link`              | the web link of the item                                                                            |
+| `other_colors`      | if other colors are available for the item, or just one color as displayed in the website (Boolean) |
+| `short_description` | a brief description of the item                                                                     |
+| `designer`          | The name of the designer who designed the item. this is extracted from the full_description column. |
+| `depth`             | Depth of the item in Centimeter                                                                     |
+| `height`            | Height of the item in Centimeter                                                                    |
+| `width`             | Width of the item in Centimeter                                                                     |
+
+
+
+# Task 01
+
+- **Question:** How many "Nursery furniture" items are in this data?
+- **Answer:** 
+- Helpful Hints:
+    - Look at your data and think about which columns might give us you an
+      answer to this devilishly difficult question.
+
+```{r}
+
+
+
+
+```
+
+
+
+# Task 02
+
+- **Question:** How much does the average chair cost at IKEA, in Saudi Riyals? What is the standard deviation of that cost?
+- **Answer:** 
+    
+```{r}
+
+
+```
+
+
+
+# Task 03
+
+- **Question:** What is the cost of the cheapest and most expensive item of
+  furniture in the "Sofas & armchairs" category?
+- **Answer:** 
+- Helpful Hints:
+    - You need TWO answers and they should be quite different.
+
+```{r}
+
+
+```
+
+
+
+# Task 04
+
+- **Question:** Does there appear to be a linear relationship between width and
+  price for furniture in the "Sofas & armchairs" category? Draw this
+  relationship in ggplot and use it to support your answer.
+- **Answer:** 
+
+```{r}
+
+
+
+```
+
+
+
+# Task 05
+
+OK, I'll admit it, the answer to #4 is yes. But if you don't upload your plot,
+you don't get any credit for the question. Now I want you to build a linear
+regression model of the relationship between the dependent variable, price, and
+the independent variable width for furniture in the "Sofas & armchairs"
+category.
+
+- **Question:** What is the coefficient of width and what does this coefficient tell us?
+- **Answer:** 
+- Helpful Hints:
+    - There's a gotcha to this one. Our data contains over 3,500 rows of data
+      and only SOME of those rows are in the our category of interest.
+    - The easiest way to handle this is to build your linear regression against
+      a new data set.
+    - So create a new data set, `sofas`, which contains our data.
+
+```{r}
+
+
+```
+
+
+# Task 06
+
+Get the residuals from your model from the previous task.
+
+- **Question:** What is the average and standard decision of the residuals from
+  this model and do they appear to normally distributed? For the second part of
+  the question, use your plot to support your answer.
+- **Answer:** 
+- Helpful Hints:
+  - The average residual is going to be a multiple choice. Don't sweat the
+    number.
+
+```{r}
+
+
+
+```
+
+
+
+# Task 06
+
+Develop your own model of price, for sofas, using any feature or combination of
+features other than the residuals/predictions of our previous model. Your goal
+is to decrease the standard deviation of the residuals and make the distribution
+of the residuals more normalized. In Canvas, tell me how you went about
+developing an improved model, what features you tried, and what features your
+kept. I want to know your formula (y~x) and I want you to prove that your
+model's residuals have a smaller standard deviation and are more normally
+distributed.
+
+- **Answer** Go to Canvas.
+
+```{r}
+
+
+
+```

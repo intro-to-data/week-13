@@ -1,0 +1,164 @@
+---
+title: ACNH Stalk Market!
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+
+breaks <- hour(hm("00:00", "11:59", "23:59"))
+labels <- c("Morning", "Afternoon")
+
+turnips <-
+  read_csv("data/turnips.csv") |>
+  mutate(
+    day = factor(wday(date, label = TRUE)),
+    week = case_when(
+      year(date) == 2021~epiweek(date)-14,
+      date == "2022-01-01"~38,
+      year(date) == 2022~epiweek(date)+38,
+      year(date) == 2023~epiweek(date)+90,
+      TRUE~NA
+    ),
+    time = hm(time),
+    time_of_day = cut(
+      x=hour(time),
+      breaks = breaks,
+      labels = labels,
+      include.lowest=TRUE
+    )
+  ) |>
+  select(
+    sample = rownames,
+    date,
+    week,
+    day,
+    time,
+    time_of_day,
+    price
+  )
+
+```
+
+
+
+# Task 01
+
+This data set has 1,419 samples in it. The `week` column assigns every sample
+day to a specific week. Every week starts on a Sunday and ends on a
+Saturday. There are no incomplete weeks in this data.
+
+- **Question:** How many weeks of data do we have in this sample?
+- **Answer:** 110
+
+```{r}
+
+# Students are unlikely to know the nrow function.
+# But they should know how to group by week and then check to see how many rows
+# of data they have in the result set.
+turnips |> count(week) |> nrow()
+
+# Another way to do this:
+turnips |> filter(day == "Sun") |> count()
+
+```
+
+
+
+# Task 02
+
+Draw a boxplot of sale price for each day of the week, except Sunday.
+
+- **Question:** Based on this plot, which days (on average) seem to be the best
+  days to sell your turnips on and which days would you avoid?
+- **Answer:** Wednesday/Thursday look like the best days. Monday/Saturday look
+  like the worst days, on average.
+        - To get credit, they don't need to match my answer, but I want them to
+          get at least part of it and I want them to explain their logic.
+
+```{r}
+
+turnips |>
+  filter(day != "Sun") |>
+  ggplot(aes(x = day, y = price)) +
+  geom_boxplot()
+
+# Take off a point or two if they include Sunday. B/C you can't seel on Sunday.
+
+```
+
+
+
+# Task 03
+
+- **Question:** What is the average sale price of Daisy Mae's turnips?
+- **Answer:** 100
+
+```{r}
+
+turnips |>
+  filter(day == "Sun") |>
+  summarize(avg_price = mean(price, na.rm = TRUE))
+
+```
+
+
+
+# Task 04
+
+Let's draw a new kind of plot, a trend line. You can do this by defining the x
+aesthetic to the date and the y aesthetic to price. Use geom_line to, well, draw
+the line. Use this plot to get some new ideas for the best day/time to sell
+turnips.
+
+- **Question:** Work as a team to develop a strategy to sell turnips which would
+maximize your profits. Using your box plot, line plot, and any other plots or
+information you make have created, tell me how you would maximize your turnip
+sale price. Don't spend more than 15 minutes on this, but do spend some time
+trying to maximize your 🔔. Be sure to explain what your group looked for and
+your process for determining the best sales strategy.
+- **Answer:** This is hard to grade, see below, I'm looking for their strategy
+  as much as their answers.
+
+```{r}
+
+turnips |>
+  filter(day != "Sun") |>
+  ggplot( aes(x = date, y = price)) +
+  geom_line()
+
+# This one is a little hard to grade.
+# IF they use just these two plots, give them 80% of the credit.
+# If they try to figure out when the spikes occur, given them 100%
+# I'm looking for some evidence they tried to develop a way to ID times/days
+# where the price of a turnip is over 100.
+# Or that they went to find a pattern for identifying when the spikes would
+# occur.
+
+turnips |> filter(price > 100) |> count(time_of_day)
+
+# and/or
+
+turnips |> filter(price > 300) |> count(day)
+
+```
+
+
+
+# Task 05
+
+Although this data is pretty good, we are missing some data.
+
+- **Question:** How many rows of data are we missing and which days have the
+  most missing data?
+- **Answer:** There are six missing price samples. Monday and Thursday are the
+  "worst" with two missing each.
+
+```{r}
+
+turnips |> filter(is.na(price)) |> count(day)
+
+```
+

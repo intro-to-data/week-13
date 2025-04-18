@@ -1,11 +1,12 @@
 pkgs <- c(
+  "httpgd",
   "knitr",
-  "modelr",
-  "randomForest",
-  "readxl",
   "rmarkdown",
-  "rpart",
-  "rpart.plot",
+  "tidymodels",
   "tidyverse"
 )
 install.packages(pkgs, dependencies = "TRUE")
+
+unlink("turnips-answers.qmd")
+unlink("ikea-answers.qmd")
+

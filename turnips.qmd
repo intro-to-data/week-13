@@ -1,0 +1,175 @@
+---
+title: ACNH Stalk Market!
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+
+breaks <- hour(hm("00:00", "11:59", "23:59"))
+labels <- c("Morning", "Afternoon")
+
+turnips <-
+  read_csv("data/turnips.csv") |>
+  mutate(
+    day = factor(wday(date, label = TRUE)),
+    week = case_when(
+      year(date) == 2021~epiweek(date)-14,
+      date == "2022-01-01"~38,
+      year(date) == 2022~epiweek(date)+38,
+      year(date) == 2023~epiweek(date)+90,
+      TRUE~NA
+    ),
+    time = hm(time),
+    time_of_day = cut(
+      x=hour(time),
+      breaks = breaks,
+      labels = labels,
+      include.lowest=TRUE
+    )
+  ) |>
+  select(
+    sample = rownames,
+    date,
+    week,
+    day,
+    time,
+    time_of_day,
+    price
+  )
+
+```
+
+![](https://animalcrossing.nintendo.com/new-horizons/assets/img/global/logos/logo-acnh-en-2x.png)
+
+# ACNH Stalk Market Analysis!
+
+Welcome to what is likely the silliest analysis of the year. We are going to
+analyze a sample of turnip data from Animal Crossing New Horizons. I assume
+you've already run the setup chunk above (if not, that was a hint).
+
+For those of you not familiar with the world's great anthropomorphic raccoon,
+Tom Nook, and his islands in the sea, let's turn to [Wikipedia](https://en.wikipedia.org/wiki/Animal_Crossing:_New_Horizons):
+
+> Animal Crossing: New Horizons is a 2020 social simulation game developed and
+> published by Nintendo for the Nintendo Switch; it is the fifth main entry in
+> the Animal Crossing series. In New Horizons, the player controls a character
+> who moves to a deserted island after purchasing a getaway package from Tom
+> Nook, accomplishes assigned tasks, and develops the island as they
+> choose. They can gather and craft items, customize the island, and develop it
+> into a community of anthropomorphic animals.
+
+
+In a game genuinely meant for children, there is an activity called the Stalk
+Market, where players can play a facsimile of the stock market. But I think [Nookipedia](https://nookipedia.com/wiki/Stalk_Market) explains this best:
+
+> The Stalk Market refers to the system of buying and selling turnips in the
+> Animal Crossing series. In the Stalk Market, players can buy and sell turnips
+> in order to turn a profit, based on its fluctuating value as determined by the
+> town store. The name is a pun on the real-life equivalent known as the stock
+> market.
+
+Sunday morning, you buy your turnips from Daisy Mae. Later in the week, you sell
+them and hopefully make a profit. But when should we sell them to maximize our
+🔔 (the unit of money in ACNH). There are some strict rules:
+
+- You can only buy turnips on Sunday.
+- You cannot sell turnips on Sunday.
+- Failure to sell your turnips by Saturday night is a 100% loss.
+- Morning prices and afternoon prices differ, except on Sunday when there is
+  only one price.
+
+
+
+# Task 01
+
+This data set has 1,419 samples in it. The `week` column assigns every sample
+day to a specific week. Every week starts on a Sunday and ends on a
+Saturday. There are no incomplete weeks in this data.
+
+- **Question:** How many weeks of data do we have in this sample?
+- **Answer:**
+
+```{r}
+
+
+```
+
+
+
+# Task 02
+
+Draw a boxplot of sale price for each day of the week, except Sunday.
+
+- **Question:** Based on this plot, which days (on average) seem to be the best
+  days to sell your turnips on and which days would you avoid?
+- **Answer:**
+- Helpful Hints:
+    - YOU CANNOT SELL TURNIPS ON SUNDAY!!!
+
+```{r}
+
+
+```
+
+
+
+# Task 03
+
+- **Question:** What is the average sale price of Daisy Mae's turnips?
+- **Answer:**
+
+```{r}
+
+
+```
+
+
+
+# Task 04
+
+Let's draw a new kind of plot, a trend line. You can do this by defining the x
+aesthetic to the date and the y aesthetic to price. Use geom_line to, well, draw
+the line. Use this plot to get some new ideas for the best day/time to sell
+turnips.
+
+- **Question:** Work as a team to develop a strategy to sell turnips which would
+maximize your profits. Using your box plot, line plot, and any other plots or
+information you make have created, tell me how you would maximize your turnip
+sale price. Don't spend more than 15 minutes on this, but do spend some time
+trying to maximize your 🔔. Be sure to explain what your group looked for and
+your process for determining the best sales strategy.
+- **Answer:**
+- Helpful Hints:
+    - Aesthetic is a reference to the `aes()` function which is short for
+      aesthetic.
+    - This may help you: https://r-graph-gallery.com/line-plot.html
+    - YOU CANNOT SELL TURNIPS ON SUNDAY!!!
+
+```{r}
+
+
+```
+
+
+
+# Task 05
+
+Although this data is pretty good, we are missing some data.
+
+- **Question:** How many rows of data are we missing and which days have the
+  most missing data?
+- **Answer:** 
+- Helpful Hints:
+    - is.na() is your friend.
+    - https://dplyr.tidyverse.org/reference/filter.html
+    - For this question, include missing price data on Sunday as well.
+
+```{r}
+
+
+
+```
+

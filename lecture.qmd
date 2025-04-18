@@ -1,0 +1,294 @@
+---
+title: What is a p-value?
+---
+
+
+Prelude:
+================================================================================
+
+- I like to ask students, "Can you tell me what a p-value means"?
+    - It is a bit of a trick question, because I don't actually expect anyone
+      to have a thorough definition of the p-value on the tip of their tongue.
+- Goal: Help you understand what a p-value is more intuitively.
+- I often deride the p-value, but not because of any fundamental flaw in the 
+  p-value itself. I deride the way we over-interpret the p-value as a singular
+  arbiter of truth.
+- Other important factors include effect size, bias, etc.
+
+In this lecture I will present you with a simple hypothetical research question.
+We have two groups, "a" and "b". We are going to perform some incredibly 
+"sciency" intervention on group "b" and because of that we expect to see group 
+"b" have a higher measured "value" than group "a".
+
+- **Question:** Is the average value of the "value" column from group "b" larger
+  than the corresponding "value" of group "a"?
+- **Answer:** No answer yet. That's why we are here!
+- Helpful Hints:
+    - The null hypothesis states there is no difference in the mean value of 
+      group "a" and group "b".
+    - We can use a two-tailed t-test to test for statistical significance.
+    - We will consider the observed differences statistically significant if our
+      p-value (alpha) is < .05.
+
+
+```{r}
+#| lable: setup
+#| include: false
+
+library(tidyverse)
+
+options(scipen = 999)
+
+set.seed(1234)
+
+group_size <- 175
+
+df <-
+  tibble(
+    sample_group = c(
+      rep("a", group_size),
+      rep("b", group_size)
+    ),
+    values = c(
+      rnorm(n = group_size, mean = 0, sd = 1),
+      rnorm(n = group_size, mean = .2, sd = 1)
+     )
+  )
+
+```
+
+```{r}
+df
+```
+
+
+Observed Difference
+================================================================================
+
+What is the observed difference between groups "a", and "b"?
+
+
+```{r}
+
+# Disclaimer: You are not responsible for the code in this lecture.
+# I will not ask you to do this on the final.
+#
+# I know, half of you just turned off the video.
+# For the three of you still watching, let's try to better understand the ideas,
+# without stressing about the code too much.
+
+
+observed_differences <-
+  df |>
+  group_by(sample_group) |>
+  summarize(
+    avg_values = mean(values)
+  ) |>
+  # Turns my rows into columns.
+  # So I can calculate t0.
+  pivot_wider(
+    names_from = sample_group,
+    values_from = avg_values
+  ) |>
+  mutate(obs_diff = b - a)
+
+observed_differences
+
+```
+
+- Now that we know our obs_diff, od~0~, we have to ask ourselves, is it
+  statistically significant?
+- We know there is an _observed difference_ between the two groups because it 
+  says so in the setup code chunk above.
+    - Pretend you don't already know that.
+    - I say observed difference because I have but a single sample of data.
+    - And I need to estimate how likely it is to be statistically significant.
+    - Above, we used dplyr verbs and directly observe the difference between 
+      our two groups for this sample.
+    - And logically, if we ran this experiment over again, I would expect 
+      similar but not identical data.
+- Now we ask, are the observed differences statistically significant?
+- Here's the tricky part. The t-test does not focus on the mean value of 
+  "a" or the mean value of "b". It focuses on the average difference between the 
+  mean value of "a" and the mean value of "b".
+    - This is a subtle but important difference.
+
+
+T-Test
+================================================================================
+
+- **Question:** Is the average value of the "value" column from group "b" larger
+  than the corresponding "value" of group "a"?
+- **Answer:** Yes
+
+```{r}
+
+t.test(
+  values~sample_group,
+  var.equal = TRUE,
+  data = df
+)
+
+```
+
+- I played around and created a simulated data set with a statistically   
+  significant difference between the two groups.
+- Now, let's dig deeper:
+    - Remember that phrase "null hypothesis", right?
+    - Our null hypothesis is that there is no difference between the two groups.
+    - In other words, the average observed difference between "a" and "b" is 
+      zero.
+    - The null hypothesis is always going to be the assumption of no difference,
+      no impact, no change. The null hypothesis has been killing academic dreams
+      for years. . .
+- We performed our project once and we got one single value, od~0~.
+- But if we performed this experiment hundreds, even thousands of times . . .
+    - We would get very bored.
+    - We would also create a distribution of possible differences
+      between "a" and "b".
+    - Each time we rerun the experiment, we will generate new data.
+    - And our average "a" value and our average "b" value will change, a 
+      little, every time we rerun the experiment.
+    - And that means the observed value of od~0~ will vary.
+    - But we don't have a budget to do this. Especially now.
+- Instead, we will use a technique called "the bootstrap" to test this null 
+  hypothesis.
+- We can use the bootstrap to "rerun" our experiment many hundreds, even 
+  thousands of times. And each time we will create a new observed od~0~.
+    - We create these hundreds of samples by resampling our first data set.
+    - We know (believe) those values are real, or we know that we made them up
+      while engaging in academic fraud. Either way, publicly claim the sampled
+      values represent real-world outcomes.
+    - We use our existing sample and sample from it, with replacement, to create
+      many thousands of unique possible data sets.
+- There are packages that make this process easier, but the hide the simple
+  complexity of what the bootstrap is and how it works.
+- Your brain is probably starting to hurt so let's get a bit more concrete.
+
+
+Bootstrap
+================================================================================
+
+```{r}
+
+# Create a blank dataframe (tibble), containing no data (yet).
+# Define the number of repeat samples you want to create.
+between_group_variation <- tibble()
+n_samples <- 10000
+
+
+# I'll explain this part later.
+ci_low <- n_samples * .025
+ci_high <- n_samples - (n_samples * .025)
+
+
+# Use a for loop to create many samples from "a" and "b".
+# Measure the difference between them, to help us assess if the observed 
+# differences are statically significant.
+# Yes, this part is slow.
+# Remember,. we just signed up for 10,000 unique samples.
+for (i in 1:n_samples) {
+  sample_a <- mean(
+    sample(
+      x = df$values[df$sample_group == "a"],
+      size = group_size,
+      replace = TRUE
+    )
+  )
+  sample_b <- mean(
+    sample(
+      x = df$values[df$sample_group == "a"],
+      size = group_size,
+      replace = TRUE
+    )
+  )
+  obs_diff = sample_b - sample_a
+  between_group_variation = bind_rows(
+    between_group_variation,
+    tibble(
+      bootstrap = as.character(i),
+      sample_a,
+      sample_b,
+      obs_diff
+    )
+  )
+}
+
+# This will make it easier to identify our 95 % confidence intervals.
+between_group_variation <-
+  between_group_variation |>
+  arrange(obs_diff) |>
+  mutate(sorted_row = row_number())
+
+between_group_variation
+
+```
+
+And now we can get a sense of what this looks like:
+
+```{r}
+
+# - Plots a density plot of the difference between the mean of "a" and 
+#   the mean of "b" (density plot).
+# - Highlights the 95% confidence intervals in dark green.
+# - Highlights the value of our first oSd~0~.
+ggplot(data = between_group_variation, aes(x = obs_diff)) +
+  geom_density() +
+  geom_vline(
+    xintercept = observed_differences$obs_diff,
+    color = "darkgreen"
+  ) +
+  geom_vline(
+    xintercept = between_group_variation$obs_diff[between_group_variation$sorted_row == ci_low],
+    color = "red",
+    linetype = "dashed"
+  ) +
+  geom_vline(
+    xintercept = between_group_variation$obs_diff[between_group_variation$sorted_row == ci_high],
+    color = "red",
+    linetype = "dashed"
+  )
+
+```
+
+Because our initial observed difference is outside of our 95% confidence 
+intervals for between group variation, we can reject the null hypothesis that 
+the difference between groups "a" and "b" is zero. But, what is our p-value?
+
+This means that yes, the observed differnces are statistically significant.
+
+
+
+P-Value
+================================================================================
+
+```{r}
+
+# Calculating how many rows are MORE extreme than our first sample.
+lower <- between_group_variation |> filter(obs_diff <= -observed_differences$obs_diff) |> nrow() 
+higher <- between_group_variation |> filter(obs_diff >= observed_differences$obs_diff) |> nrow() 
+
+# Remember, this is an approximation!
+# It also happens to nearly match the p-value from our t-test!
+(lower + higher) / n_samples
+
+```
+
+Eerily simple, right? The first time I saw this, I was floored. So simple!
+
+Prologue:
+
+- Would we do this in real life?
+- Yes, but not on data this simple.
+- You may recall that the t-test assumes both data sets are normally distributed.
+- In this example, they values for both groups are normal.
+- But as we've seen, not all data is normal. And the t-test can (does) give 
+  misleading results because of its assumption.
+    - An assumption early statistically researchers had to live with because 
+      they didn't have computers.
+    - A bootstrap t-test is more useful for working with badly skewed data
+      because, as a non-parametric test, it is more reliable when working with
+      skewed data.
+- Also allows us to create confidence intervals and samples for statistical 
+  outputs such as the coefficient on a linear regression or the coefficient of
+  on a logistic regression.
